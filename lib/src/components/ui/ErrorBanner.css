@@ -1,0 +1,48 @@
+.errorBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 18px;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: var(--radius);
+  background: rgba(254, 226, 226, 0.78);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.errorBanner__content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.errorBanner__icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.errorBanner__title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.errorBanner__message {
+  color: var(--muted);
+}
+
+.errorBanner__retry {
+  align-self: flex-start;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.errorBanner__retry:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(31, 77, 143, 0.25);
+}

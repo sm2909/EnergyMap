@@ -1,0 +1,38 @@
+.chartCard {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chartCard__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.chartCard__header h3 {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.13rem;
+  letter-spacing: -0.01em;
+}
+
+.chartCard__subtitle {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  max-width: 430px;
+  line-height: 1.4;
+}
+
+.chartCard__content {
+  flex: 1;
+  min-height: 238px;
+}
