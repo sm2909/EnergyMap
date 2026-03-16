@@ -41,7 +41,6 @@ class MemoryHandler(EnergyHandler):
     def process(self, trace):
         self.traces.append(trace)
 
-# --- NEW: MultiHandler Wrapper ---
 class MultiHandler(EnergyHandler):
     """Wraps multiple handlers so pyJoules can process them at the same time."""
     def __init__(self, handlers):
@@ -51,7 +50,6 @@ class MultiHandler(EnergyHandler):
     def process(self, trace):
         for handler in self.handlers:
             handler.process(trace)
-# ---------------------------------
 
 # Get the absolute path to the data directory
 data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
@@ -65,6 +63,30 @@ if not os.path.exists(meta_csv_path):
 
 os.chdir("../repos/black")
 
+def measure_idle_power(duration=5):
+    """
+    Measure baseline idle CPU power using pyJoules.
+    Returns power in microjoules per second.
+    """
+
+    memory_handler = MemoryHandler()
+
+    with EnergyContext(handler=memory_handler, start_tag="idle_measure"):
+        time.sleep(duration)
+
+    trace = memory_handler.traces[-1]
+    sample = trace[0]
+
+    package = sample.energy.get("package_0", 0)
+    core = sample.energy.get("core_0", 0)
+
+    total_energy = package + core
+
+    idle_power = total_energy / duration  # µJ per second
+
+    print(f"Idle power estimated: {idle_power:.2f} µJ/s")
+
+    return idle_power
 
 class TestCollector:
     def __init__(self):
@@ -137,6 +159,7 @@ def run_test(test_name, csv_handler):
     return duration, package, core
 
 def main():
+    idle_power = measure_idle_power()
 
     for repo_name, cfg in REPOS.items():
 
@@ -169,13 +192,19 @@ def main():
             median_duration = median(durations)
             median_package = median(packages)
             median_core = median(cores)
+
+            idle_energy = idle_power * median_duration
+
+            corrected_package = max(median_package - idle_energy, 0)
+            corrected_core = max(median_core - idle_energy, 0)
+
             timestamp = time.time()
 
             tag = f"{repo_name}:{test}"
 
             with open(meta_csv_path, "a") as f:
                 f.write(
-                    f"{timestamp};{repo_name};{test};{median_duration};{median_package};{median_core}\n"
+                    f"{timestamp};{repo_name};{test};{median_duration};{corrected_package};{corrected_core}\n"
                 )
 
     csv_handler.save_data()
