@@ -65,8 +65,8 @@ os.chdir("../repos/black")
 
 def measure_idle_power(duration=5):
     """
-    Measure baseline idle CPU power using pyJoules.
-    Returns power in microjoules per second.
+    Measure baseline idle power for each RAPL domain.
+    Returns idle_package_power and idle_core_power in µJ/s
     """
 
     memory_handler = MemoryHandler()
@@ -80,13 +80,13 @@ def measure_idle_power(duration=5):
     package = sample.energy.get("package_0", 0)
     core = sample.energy.get("core_0", 0)
 
-    total_energy = package + core
+    idle_package_power = package / duration
+    idle_core_power = core / duration
 
-    idle_power = total_energy / duration  # µJ per second
+    print(f"Idle package power: {idle_package_power:.2f} µJ/s")
+    print(f"Idle core power: {idle_core_power:.2f} µJ/s")
 
-    print(f"Idle power estimated: {idle_power:.2f} µJ/s")
-
-    return idle_power
+    return idle_package_power, idle_core_power
 
 class TestCollector:
     def __init__(self):
@@ -159,7 +159,7 @@ def run_test(test_name, csv_handler):
     return duration, package, core
 
 def main():
-    idle_power = measure_idle_power()
+    idle_package_power, idle_core_power = measure_idle_power()
 
     for repo_name, cfg in REPOS.items():
 
@@ -170,7 +170,7 @@ def main():
 
         tests = get_tests(cfg["ignore"])
 
-        for test in tqdm(tests[1:21], desc=f"Running {repo_name}"):
+        for test in tqdm(tests[1:6], desc=f"Running {repo_name}"):
 
             subprocess.run(
                 [sys.executable, "-m", "pytest", "-q", "--disable-warnings", test],
@@ -193,10 +193,11 @@ def main():
             median_package = median(packages)
             median_core = median(cores)
 
-            idle_energy = idle_power * median_duration
+            idle_package_energy = idle_package_power * median_duration
+            idle_core_energy = idle_core_power * median_duration
 
-            corrected_package = max(median_package - idle_energy, 0)
-            corrected_core = max(median_core - idle_energy, 0)
+            corrected_package = max(median_package - idle_package_energy, 0)
+            corrected_core = max(median_core - idle_core_energy, 0)
 
             timestamp = time.time()
 
