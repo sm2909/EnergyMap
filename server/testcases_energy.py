@@ -14,6 +14,24 @@ from pyJoules.handler.csv_handler import CSVHandler
 from tqdm import tqdm
 from pyJoules.handler import EnergyHandler
 
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+REPO_DIR = os.path.join(BASE_DIR, "repos")
+
+REPOS = {
+    "black": {
+        "path": os.path.join(REPO_DIR, "black"),
+        "ignore": ["tests/test_blackd.py"]
+    },
+    "requests": {
+        "path": os.path.join(REPO_DIR, "requests"),
+        "ignore": []
+    },
+    "flask": {
+        "path": os.path.join(REPO_DIR, "flask"),
+        "ignore": []
+    }
+}
+
 class MemoryHandler(EnergyHandler):
     """A simple handler to keep energy traces in memory."""
     def __init__(self):
@@ -43,7 +61,7 @@ meta_csv_path = os.path.join(data_dir, "test_energy.csv")
 # Create the meta CSV file if it doesn't exist
 if not os.path.exists(meta_csv_path):
     with open(meta_csv_path, "w") as f:
-        f.write("test_name;median_duration;timestamp\n")
+        f.write("timestamp;repo;test_name;median_duration;median_package;median_core\n")
 
 os.chdir("../repos/black")
 
@@ -56,15 +74,33 @@ class TestCollector:
         for item in items:
             self.tests.append(item.nodeid)
 
+def get_tests(ignore_files=None):
 
-def get_tests():
-    collector = TestCollector()
-    pytest.main(
-        ["--collect-only", "-q", "--ignore=tests/test_blackd.py"],  # figure out how to remove ignore part later
-        plugins=[collector],
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "--collect-only",
+        "-q"
+    ]
+
+    if ignore_files:
+        for f in ignore_files:
+            cmd.append(f"--ignore={f}")
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True
     )
-    return collector.tests
 
+    tests = []
+
+    for line in result.stdout.splitlines():
+        if "::test" in line:
+            tests.append(line.strip())
+
+    return tests
 
 def run_test(test_name, csv_handler):
     tag = f"{test_name}_run"
@@ -101,42 +137,47 @@ def run_test(test_name, csv_handler):
     return duration, package, core
 
 def main():
-    tests = get_tests()
 
-    for test in tqdm(tests[1:5], desc="Running tests"):
+    for repo_name, cfg in REPOS.items():
 
-        # warmup run
-        subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "--disable-warnings", test],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        print(f"\n===== Processing {repo_name} =====")
 
-        # Collect 5 runs
-        durations = []
-        packages = []
-        cores = []
+        repo_path = os.path.abspath(cfg["path"])
+        os.chdir(repo_path)
 
-        for i in range(5):
-            duration, package, core = run_test(test, csv_handler)
-            durations.append(duration)
-            packages.append(package)
-            cores.append(core)
+        tests = get_tests(cfg["ignore"])
 
-        # Calculate median duration
-        median_duration = median(durations)
-        median_package = median(packages)
-        median_core = median(cores)
-        timestamp = time.time()
+        for test in tqdm(tests[1:21], desc=f"Running {repo_name}"):
 
-        # Store median in meta CSV
-        tag = test
+            subprocess.run(
+                [sys.executable, "-m", "pytest", "-q", "--disable-warnings", test],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
-        with open(meta_csv_path, "a") as f:
-            f.write(f"{timestamp};{tag};{median_duration};{median_package};{median_core}\n")
+            durations = []
+            packages = []
+            cores = []
 
-    # Save the full trace data to test_energy_meta.csv
+            for i in range(5):
+                duration, package, core = run_test(test, csv_handler)
+                durations.append(duration)
+                packages.append(package)
+                cores.append(core)
+
+            median_duration = median(durations)
+            median_package = median(packages)
+            median_core = median(cores)
+            timestamp = time.time()
+
+            tag = f"{repo_name}:{test}"
+
+            with open(meta_csv_path, "a") as f:
+                f.write(
+                    f"{timestamp};{repo_name};{test};{median_duration};{median_package};{median_core}\n"
+                )
+
     csv_handler.save_data()
 
     print("Energy data saved to CSV")
