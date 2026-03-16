@@ -1,0 +1,146 @@
+# !pip install pyJoules numpy pytest tqdm statistics
+
+# Run this command for giving access to rapl counter
+# sudo chmod -R a+r /sys/class/powercap/intel-rapl
+
+import pytest
+import os
+import sys
+import subprocess
+import time
+from statistics import median
+from pyJoules.energy_meter import EnergyContext
+from pyJoules.handler.csv_handler import CSVHandler
+from tqdm import tqdm
+from pyJoules.handler import EnergyHandler
+
+class MemoryHandler(EnergyHandler):
+    """A simple handler to keep energy traces in memory."""
+    def __init__(self):
+        super().__init__()
+        self.traces = []
+
+    def process(self, trace):
+        self.traces.append(trace)
+
+# --- NEW: MultiHandler Wrapper ---
+class MultiHandler(EnergyHandler):
+    """Wraps multiple handlers so pyJoules can process them at the same time."""
+    def __init__(self, handlers):
+        super().__init__()
+        self.handlers = handlers
+
+    def process(self, trace):
+        for handler in self.handlers:
+            handler.process(trace)
+# ---------------------------------
+
+# Get the absolute path to the data directory
+data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
+csv_handler = CSVHandler(os.path.join(data_dir, "test_energy_meta.csv"))
+meta_csv_path = os.path.join(data_dir, "test_energy.csv")
+
+# Create the meta CSV file if it doesn't exist
+if not os.path.exists(meta_csv_path):
+    with open(meta_csv_path, "w") as f:
+        f.write("test_name;median_duration;timestamp\n")
+
+os.chdir("../repos/black")
+
+
+class TestCollector:
+    def __init__(self):
+        self.tests = []
+
+    def pytest_collection_modifyitems(self, session, config, items):
+        for item in items:
+            self.tests.append(item.nodeid)
+
+
+def get_tests():
+    collector = TestCollector()
+    pytest.main(
+        ["--collect-only", "-q", "--ignore=tests/test_blackd.py"],  # figure out how to remove ignore part later
+        plugins=[collector],
+    )
+    return collector.tests
+
+
+def run_test(test_name, csv_handler):
+    tag = f"{test_name}_run"
+    
+    # Initialize the memory handler for this specific run
+    memory_handler = MemoryHandler()
+    
+    # Wrap both handlers into the single MultiHandler
+    multi_handler = MultiHandler([csv_handler, memory_handler])
+    
+    start = time.perf_counter()
+
+    # Pass the SINGLE multi_handler to EnergyContext
+    with EnergyContext(handler=multi_handler, start_tag=tag):
+        subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "--disable-warnings", test_name],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    duration = time.perf_counter() - start
+
+    # 1. Extract the full trace container from our memory handler
+    trace = memory_handler.traces[-1]
+    
+    # 2. Extract the specific sample from inside the trace
+    sample = trace[0]
+    
+    # 3. Now extract the values from the sample's energy dictionary
+    package = sample.energy.get("package_0", 0)
+    core = sample.energy.get("core_0", 0)
+
+    return duration, package, core
+
+def main():
+    tests = get_tests()
+
+    for test in tqdm(tests[1:5], desc="Running tests"):
+
+        # warmup run
+        subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "--disable-warnings", test],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Collect 5 runs
+        durations = []
+        packages = []
+        cores = []
+
+        for i in range(5):
+            duration, package, core = run_test(test, csv_handler)
+            durations.append(duration)
+            packages.append(package)
+            cores.append(core)
+
+        # Calculate median duration
+        median_duration = median(durations)
+        median_package = median(packages)
+        median_core = median(cores)
+        timestamp = time.time()
+
+        # Store median in meta CSV
+        tag = test
+
+        with open(meta_csv_path, "a") as f:
+            f.write(f"{timestamp};{tag};{median_duration};{median_package};{median_core}\n")
+
+    # Save the full trace data to test_energy_meta.csv
+    csv_handler.save_data()
+
+    print("Energy data saved to CSV")
+
+
+if __name__ == "__main__":  
+    main()

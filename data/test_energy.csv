@@ -1,0 +1,4 @@
+1773678102.5131025;tests/test_black.py::BlackTestCase::test_assertFormatEqual_print_tree_diff;0.5250536170005944;8142920.0;157737.0
+1773678105.9800737;tests/test_black.py::BlackTestCase::test_bpo_2142_workaround;0.5583986110013939;8901594.0;107172.0
+1773678109.3081837;tests/test_black.py::BlackTestCase::test_bpo_33660_workaround;0.5258155939991411;9192273.0;351697.0
+1773678112.8219624;tests/test_black.py::BlackTestCase::test_broken_symlink;0.5700355549997767;9083256.0;153678.0
