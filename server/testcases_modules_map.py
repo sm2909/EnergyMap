@@ -2,22 +2,22 @@ import ast
 import os
 import csv
 
-OUTPUT = "data/testcase_module_map.csv"
+OUTPUT = "../data/testcase_module_map.csv"
 
 REPOS = {
     "black": {
-        "tests": "repos/black/tests",
-        "src": "repos/black/src/black",
+        "tests": "../repos/black/tests",
+        "src": "../repos/black/src/black",
         "pkg": "black"
     },
     "requests": {
-        "tests": "repos/requests/tests",
-        "src": "repos/requests/src/requests",
+        "tests": "../repos/requests/tests",
+        "src": "../repos/requests/src/requests",
         "pkg": "requests"
     },
     "flask": {
-        "tests": "repos/flask/tests",
-        "src": "repos/flask/src/flask",
+        "tests": "../repos/flask/tests",
+        "src": "../repos/flask/src/flask",
         "pkg": "flask"
     }
 }
