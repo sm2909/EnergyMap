@@ -149,6 +149,7 @@ def process_repo(name, cfg, writer):
             if f.startswith("test") and f.endswith(".py"):
 
                 path = os.path.join(root, f)
+                rel_test_path = os.path.relpath(path, cfg["tests"])
                 test_data, imports = analyze_test_file(path)
 
                 for test_name, calls in test_data:
@@ -156,12 +157,11 @@ def process_repo(name, cfg, writer):
                         calls, imports, module_index, cfg["pkg"]
                     )
                     
-                    # FIX: Don't silently drop testcases!
                     if not modules:
-                        writer.writerow([test_name, "UNMAPPED"])
+                        writer.writerow([name, rel_test_path, test_name, "UNMAPPED"])
                     else:
                         for m in modules:
-                            writer.writerow([test_name, m])
+                            writer.writerow([name, rel_test_path, test_name, m])
 
 
 def main():
@@ -170,7 +170,7 @@ def main():
 
     with open(OUTPUT, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["testcase", "module"])
+        writer.writerow(["repo", "test_file", "testcase", "module"])
 
         for name, cfg in REPOS.items():
             process_repo(name, cfg, writer)
