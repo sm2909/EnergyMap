@@ -85,12 +85,23 @@ def analyze_test_file(path):
     visitor = TestVisitor()
     visitor.visit(tree)
 
-    tests = [
-        n.name for n in ast.walk(tree)
-        if isinstance(n, ast.FunctionDef) and n.name.startswith("test")
-    ]
+    imports = visitor.imports
 
-    return tests, visitor.calls, visitor.imports
+    test_data = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test"):
+
+            test_visitor = TestVisitor()
+            test_visitor.imports = imports  # reuse imports
+
+            test_visitor.visit(node)
+
+            test_data.append(
+                (node.name, test_visitor.calls)
+            )
+
+    return test_data, imports
 
 
 # ========= MAPPING LOGIC =========
@@ -129,7 +140,6 @@ def map_calls(calls, imports, module_index, pkg_name):
 # ========= MAIN =========
 
 def process_repo(name, cfg, writer):
-
     print("Processing:", name)
 
     module_index = index_modules(cfg["src"])
@@ -139,16 +149,19 @@ def process_repo(name, cfg, writer):
             if f.startswith("test") and f.endswith(".py"):
 
                 path = os.path.join(root, f)
+                test_data, imports = analyze_test_file(path)
 
-                tests, calls, imports = analyze_test_file(path)
-
-                modules = map_calls(
-                    calls, imports, module_index, cfg["pkg"]
-                )
-
-                for t in tests:
-                    for m in modules:
-                        writer.writerow([t, m])
+                for test_name, calls in test_data:
+                    modules = map_calls(
+                        calls, imports, module_index, cfg["pkg"]
+                    )
+                    
+                    # FIX: Don't silently drop testcases!
+                    if not modules:
+                        writer.writerow([test_name, "UNMAPPED"])
+                    else:
+                        for m in modules:
+                            writer.writerow([test_name, m])
 
 
 def main():
