@@ -170,7 +170,7 @@ def main():
 
         tests = get_tests(cfg["ignore"])
 
-        for test in tqdm(tests[1:6], desc=f"Running {repo_name}"):
+        for test in tqdm(tests[1:51], desc=f"Running {repo_name}"):
 
             subprocess.run(
                 [sys.executable, "-m", "pytest", "-q", "--disable-warnings", test],
