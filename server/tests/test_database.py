@@ -154,8 +154,14 @@ class TestModuleEnergyStats:
 
     def test_upsert_overwrites(self, db_path):
         save_module_energy_stats("proj", self.SAMPLE_STATS, db_path)
-        updated = [{"module": "mod1", "mean": 99.0, "median": 99.0,
-                     "variance": 0.0, "best_case": 99.0, "worst_case": 99.0}]
+        updated = [{
+            "module": "mod1",
+            "mean": 99.0,
+            "median": 99.0,
+            "variance": 0.0,
+            "best_case": 99.0,
+            "worst_case": 99.0,
+        }]
         save_module_energy_stats("proj", updated, db_path)
         result = get_module_energy_stats("proj", db_path)
         mod1 = next(r for r in result if r["module"] == "mod1")
