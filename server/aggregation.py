@@ -3,7 +3,7 @@ import statistics
 from collections import defaultdict
 
 
-ENERGY_FILE = "../data/test_energy.csv"
+ENERGY_FILE = "../data/test_energy_clean.csv"
 MAP_FILE = "../data/testcase_module_map.csv"
 OUTPUT_FILE = "../data/module_energy_stats.csv"
 
@@ -22,7 +22,7 @@ def load_energy():
         reader = csv.reader(f, delimiter=";")
 
         for row in reader:
-            timestamp, repo, nodeid, duration, package, core = row
+            timestamp, repo, nodeid, duration, package, core = row[:6]
 
             testcase = extract_test_name(nodeid)
 
