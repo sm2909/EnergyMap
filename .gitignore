@@ -8,6 +8,8 @@ venv/
 node_modules/
 build/
 
+*.db
+
 black/
 requests/
 flask/
