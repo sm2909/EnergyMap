@@ -23,3 +23,10 @@ Backend:
 
 Frontend:
 - visualization dashboard
+
+## Setup
+
+1. Run "python server/init_db.py && python server/populate_db.py".
+2. Start the server using command "uvicorn server.api:app --port 8080".
+3. Start frontend by change directory to lib ("cd lib" from root) then using command "npm install" 
+followed by "npm run dev".
