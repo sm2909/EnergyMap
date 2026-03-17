@@ -9,15 +9,20 @@ import {
 } from 'recharts';
 import './ChartCard.css';
 
-import { energyPalette, getEnergyColor } from '../../utils/energyColors';
-
 export default function ModuleEnergyPie({ data }) {
-  const maxMean = Math.max(...data.map((item) => item.mean || 0));
   const chartData = data.map((item) => ({
     name: item.module,
     value: item.mean,
-    color: getEnergyColor(item.mean, maxMean),
   }));
+
+  // Create an array of visually distinct colors for each slice in the pie chart
+  const pieColors = [
+    '#0088FE', '#00C49F', '#FFBB28', '#FF8042', 
+    '#A28DFF', '#FF6666', '#8884d8', '#82ca9d',
+    '#a4de6c', '#d0ed57', '#ffc658', '#4A90E2',
+    '#E91E63', '#50E3C2', '#F5A623', '#D0021B',
+    '#7ED321', '#9013FE', '#BD10E0', '#4A4A4A'
+  ];
 
   return (
     <div className="chartCard">
@@ -39,8 +44,8 @@ export default function ModuleEnergyPie({ data }) {
               paddingAngle={2}
               stroke="transparent"
             >
-              {chartData.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
+              {chartData.map((entry, index) => (
+                <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
               ))}
             </Pie>
             <Tooltip formatter={(value) => `${value.toFixed(2)} J`} />

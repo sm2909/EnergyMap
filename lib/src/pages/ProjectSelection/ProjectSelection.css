@@ -1,9 +1,21 @@
+@keyframes moveBackground {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 1000px 0; /* Adjust this based on your image dimensions if needed */
+  }
+}
+
 .project-selection-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: var(--bg-gradient);
+  background-image: url('/lightning-bg.jpg'); /* Assuming the image is saved in lib/public/lightning-bg.jpg */
+  background-repeat: repeat;
+  background-size: 500px auto; /* Adjust to scale the pattern */
+  animation: moveBackground 50s linear infinite;
   padding: 2rem;
 }
 
