@@ -3,6 +3,11 @@ import { Treemap, Tooltip, ResponsiveContainer } from 'recharts';
 import './ChartCard.css';
 import { getEnergyColor } from '../../utils/energyColors';
 
+const numberFormatter = (value) => {
+  if (value == null || Number.isNaN(value)) return '-';
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
+};
+
 function renderCustomContent({ x, y, width, height, name, value, index, root }) {
   if (width < 60 || height < 40) return null;
   const max = root?.value ?? value;
@@ -14,7 +19,7 @@ function renderCustomContent({ x, y, width, height, name, value, index, root }) 
         {name}
       </text>
       <text x={x + 12} y={y + 38} fill="#000000" fontSize={12} fontWeight={700} stroke="#fff" strokeWidth={0.1}>
-        {value.toFixed(1) + " Joules"}
+        {numberFormatter(value.toFixed(1)) + " Joules"}
       </text>
     </g>
   );
