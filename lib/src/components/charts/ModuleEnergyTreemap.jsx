@@ -10,11 +10,11 @@ function renderCustomContent({ x, y, width, height, name, value, index, root }) 
   return (
     <g>
       <rect x={x} y={y} width={width} height={height} fill={color} rx={12} ry={12} />
-      <text x={x + 12} y={y + 20} fill="#fff" fontSize={12} fontWeight={700}>
+      <text x={x + 12} y={y + 20} fill="#000000" fontSize={15} fontWeight={700} stroke="#fff" strokeWidth={0.1}>
         {name}
       </text>
-      <text x={x + 12} y={y + 38} fill="#f3f4f6" fontSize={11}>
-        {value.toFixed(1)}
+      <text x={x + 12} y={y + 38} fill="#000000" fontSize={12} fontWeight={700} stroke="#fff" strokeWidth={0.1}>
+        {value.toFixed(1) + " Joules"}
       </text>
     </g>
   );
