@@ -1,4 +1,3 @@
-import React from 'react';
 import './StatCard.css';
 
 export default function StatCard({ title, value, description, icon, accentColor = 'var(--primary)' }) {
