@@ -61,7 +61,7 @@ def init_db():
                 INSERT OR REPLACE INTO module_energy_stats 
                 (project, module, mean, median, variance, best_case, worst_case)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (project, module_name, mean, median, variance, best_case, worst_case))
+            """, (project, module_name, mean/1e6, median/1e6, variance/1e6, best_case/1e6, worst_case/1e6))
 
     conn.commit()
     conn.close()
