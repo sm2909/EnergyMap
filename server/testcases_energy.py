@@ -63,7 +63,7 @@ if not os.path.exists(meta_csv_path):
 
 os.chdir("../repos/black")
 
-def measure_idle_power(duration=5):
+def measure_idle_power(duration=20):
     """
     Measure baseline idle power for each RAPL domain.
     Returns idle_package_power and idle_core_power in µJ/s
@@ -170,7 +170,7 @@ def main():
 
         tests = get_tests(cfg["ignore"])
 
-        for test in tqdm(tests[1:51], desc=f"Running {repo_name}"):
+        for test in tqdm(tests, desc=f"Running {repo_name}"):
 
             subprocess.run(
                 [sys.executable, "-m", "pytest", "-q", "--disable-warnings", test],
