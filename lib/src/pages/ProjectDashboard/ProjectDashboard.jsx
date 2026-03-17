@@ -14,6 +14,14 @@ const numberFormatter = (value) => {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
 };
 
+const compactFormatter = (value) => {
+  if (value == null || Number.isNaN(value)) return '-';
+  return new Intl.NumberFormat('en-US', { 
+    notation: 'compact', 
+    maximumFractionDigits: 1 
+  }).format(value);
+};
+
 export default function ProjectDashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -85,7 +93,7 @@ export default function ProjectDashboard() {
             />
             <StatCard
               title="Average Energy Consumption"
-              value={`${numberFormatter(summary?.averageEnergy)} J`}
+              value={`${compactFormatter(summary?.averageEnergy)} J`}
               description="Mean energy across all modules"
               icon={<span>⚡</span>}
               accentColor="var(--secondary-accent)"
