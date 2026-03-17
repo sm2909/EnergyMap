@@ -33,6 +33,22 @@
   line-height: 1.5;
 }
 
+.dashboard__back-btn {
+  padding: 0.6rem 1.2rem;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  align-self: center;
+}
+
+.dashboard__back-btn:hover {
+  background-color: var(--secondary-accent);
+}
+
 .dashboard__overview {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

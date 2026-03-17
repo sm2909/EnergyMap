@@ -22,7 +22,7 @@ const compactFormatter = (value) => {
   }).format(value);
 };
 
-export default function ProjectDashboard() {
+export default function ProjectDashboard({ projectName, onBack }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ export default function ProjectDashboard() {
     setError(null);
 
     try {
-      const response = await fetchProjectEnergy();
+      const response = await fetchProjectEnergy(projectName);
       if (!Array.isArray(response)) {
         throw new Error('Invalid API response structure');
       }
@@ -47,7 +47,7 @@ export default function ProjectDashboard() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [projectName]);
 
   const summary = useMemo(() => {
     if (!data || data.length === 0) return null;
@@ -72,9 +72,10 @@ export default function ProjectDashboard() {
     <div className="dashboard">
       <header className="dashboard__header">
         <div>
-          <h1 className="dashboard__title">Energy Consumption Analysis</h1>
+          <h1 className="dashboard__title">Energy Consumption Analysis: {projectName}</h1>
           <p className="dashboard__subtitle">Software Energy Consumption Analysis Dashboard</p>
         </div>
+        <button onClick={onBack} className="dashboard__back-btn">Change Project</button>
       </header>
 
       {loading ? (
