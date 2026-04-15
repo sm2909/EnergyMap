@@ -50,7 +50,7 @@ The tool has been validated through several experimental runs on popular open-so
 ## 📁 Repository Structure
 
 ```text
-/home/khidki/EnergyMap/
+EnergyMap/
 ├── data/               # CSV data (raw measurements, mappings, and final stats)
 ├── docs/               # Architectural diagrams and documentation
 ├── lib/                # Frontend application (React + Vite)
