@@ -18,7 +18,7 @@ import sys
 import sysconfig
 from collections import defaultdict
 
-from pyinstrument import Profiler
+from pyinstrument.session import Session
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -266,43 +266,59 @@ def discover_tests(
 
 def run_test_with_profiler(
     repo_path: str, node_id: str
-) -> "Profiler | None":
-    """Run a single pytest test under pyinstrument profiling.
+) -> "Session | None":
+    """Run a single pytest test under pyinstrument profiling in a subprocess.
 
-    We import pytest and invoke ``pytest.main`` in-process so the profiler
-    can capture the full call tree.
-
-    Returns the Profiler instance, or None if profiling failed.
+    This avoids in-process pytest state contamination (ImportPathMismatchError).
+    Returns the loaded pyinstrument Session object, or None if profiling failed.
     """
-    import pytest as _pytest  # local import to avoid polluting top-level
-
-    profiler = Profiler()
-
+    import tempfile
+    
     # Save and restore cwd
     original_cwd = os.getcwd()
     try:
         os.chdir(repo_path)
 
-        # Ensure the repo's source is importable
-        if repo_path not in sys.path:
-            sys.path.insert(0, repo_path)
-
-        profiler.start()
-        _pytest.main(
-            ["-x", "-q", "--tb=no", "--no-header", "--disable-warnings", node_id],
+        # Use a temporary file for the session
+        fd, temp_path = tempfile.mkstemp(suffix=".pyisession")
+        os.close(fd)
+        
+        cmd = [
+            sys.executable, "-m", "pyinstrument",
+            "-r", "pyisession",
+            "-o", temp_path,
+            "-m", "pytest",
+            "-x", "-q", "--tb=no", "--no-header", "--disable-warnings", node_id
+        ]
+        
+        # We need to include repo_path in PYTHONPATH to ensure the src is importable
+        env = os.environ.copy()
+        if "PYTHONPATH" in env:
+            env["PYTHONPATH"] = f"{repo_path}{os.pathsep}{env['PYTHONPATH']}"
+        else:
+            env["PYTHONPATH"] = repo_path
+            
+        subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
         )
-        profiler.stop()
+        
+        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+            session = Session.load(temp_path)
+            os.remove(temp_path)
+            return session
+        else:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return None
+            
     except Exception as exc:
         print(f"  [ERROR] Profiling failed for {node_id}: {exc}")
-        try:
-            profiler.stop()
-        except Exception:
-            pass
         return None
     finally:
         os.chdir(original_cwd)
-
-    return profiler
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +327,7 @@ def run_test_with_profiler(
 
 
 def process_test(
-    profiler: Profiler,
+    session: "Session",
     src_dir: str,
     repo_name: str,
     pkg_name: str,
@@ -321,7 +337,6 @@ def process_test(
     Returns a list of dicts with keys:
         module, weight, category, parent_module
     """
-    session = profiler.last_session
     if session is None:
         return []
 
@@ -442,14 +457,14 @@ def process_repo(
     for i, (test_file, test_name, node_id) in enumerate(tests, 1):
         print(f"  [{i}/{len(tests)}] {node_id} ... ", end="", flush=True)
 
-        profiler = run_test_with_profiler(repo_path, node_id)
+        session = run_test_with_profiler(repo_path, node_id)
 
-        if profiler is None:
+        if session is None:
             writer.writerow([repo_name, test_file, test_name, "UNMAPPED", 0.0, "", ""])
             print("SKIP (profiler error)")
             continue
 
-        rows = process_test(profiler, src_dir, repo_name, pkg_name)
+        rows = process_test(session, src_dir, repo_name, pkg_name)
 
         if not rows:
             writer.writerow([repo_name, test_file, test_name, "UNMAPPED", 0.0, "", ""])
