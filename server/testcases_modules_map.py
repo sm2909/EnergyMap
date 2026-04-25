@@ -104,6 +104,15 @@ def classify_module(
         module = re.sub(r"\.__init__$", "", module)
         return module, "internal"
 
+    def clean_name(name: str) -> str:
+        if name.endswith(".so") or name.endswith(".pyd"):
+            name = name.split(".")[0]
+        name = re.sub(r"\.py$", "", name)
+        name = re.sub(r"\.dist-info$", "", name)
+        name = re.sub(r"\.egg-info$", "", name)
+        name = name.replace("__init__", "")
+        return name
+
     # ---- EXTERNAL: check site-packages BEFORE stdlib ----
     # In virtual environments, site-packages directories often live under
     # paths that also match stdlib prefixes (e.g. .venv/lib64/python3.14/).
@@ -112,18 +121,14 @@ def classify_module(
         if real_path.startswith(sp + os.sep):
             rel = os.path.relpath(real_path, sp)
             top = rel.split(os.sep)[0]
-            # Remove .py extension and common dist-info suffixes
-            top = re.sub(r"\.py$", "", top)
-            top = re.sub(r"\.dist-info$", "", top)
-            top = re.sub(r"\.egg-info$", "", top)
-            return top, "external"
+            return clean_name(top), "external"
 
     # ---- STDLIB: file lives under a stdlib directory ----
     for sp in _STDLIB_PATHS:
         if real_path.startswith(sp + os.sep):
             rel = os.path.relpath(real_path, sp)
-            top = rel.split(os.sep)[0].removesuffix(".py")
-            return top, "stdlib"
+            top = rel.split(os.sep)[0]
+            return clean_name(top), "stdlib"
 
     # ---- Could be a built-in C module (e.g. <built-in>) ----
     if "<built-in>" in file_path:
