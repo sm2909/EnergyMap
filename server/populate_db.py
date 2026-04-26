@@ -5,7 +5,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 DB_PATH = os.path.join(PROJECT_ROOT, "energy_stats.db")
-CSV_PATH = os.path.join(PROJECT_ROOT, "data", "aggregation_output.csv")
+CSV_PATH = os.path.join(PROJECT_ROOT, "data", "module_energy_stats.csv")
 
 def populate_db():
     conn = sqlite3.connect(DB_PATH)
@@ -13,10 +13,7 @@ def populate_db():
     
     # Try multiple common paths for the new aggregation output CSV
     possible_paths = [
-        CSV_PATH,
-        os.path.join(PROJECT_ROOT, "data", "module_energy_hierarchy.csv"),
-        "data/aggregation_output.csv",
-        "data/module_energy_hierarchy.csv",
+        CSV_PATH
     ]
     
     csv_file_to_use = None
