@@ -4,6 +4,7 @@
 
 .mini-chart-tooltip {
   background: var(--surface);
+  background-color: #ffffff; /* White text for contrast */
   border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 0.75rem;

@@ -10,7 +10,7 @@ const CustomTooltip = ({ active, payload }) => {
     return (
       <div className="mini-chart-tooltip">
         <p className="tooltip-module">{data.module}</p>
-        <p className="tooltip-energy">{formatEnergy(data.energy)} J</p>
+        <p className="tooltip-energy">{formatEnergy(data.energy)} mJ</p>
       </div>
     );
   }
@@ -20,8 +20,8 @@ const CustomTooltip = ({ active, payload }) => {
 export default function MiniBarChart({ data, category }) {
   const color = getCategoryColor(category);
   
-  // Calculate a reasonable height based on number of items, max 500px, min 100px
-  const chartHeight = Math.max(100, Math.min(500, data.length * 40));
+  // Increased base height calculation to accommodate more space per bar, no maximum limit
+  const chartHeight = Math.max(120, data.length * 35);
 
   return (
     <div className="mini-bar-chart-container" style={{ height: chartHeight }}>
@@ -29,7 +29,7 @@ export default function MiniBarChart({ data, category }) {
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
         >
           <XAxis type="number" hide />
           <YAxis 
@@ -37,11 +37,11 @@ export default function MiniBarChart({ data, category }) {
             type="category" 
             axisLine={false} 
             tickLine={false}
-            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
-            width={150}
+            tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+            width={280}
           />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-          <Bar dataKey="energy" radius={[0, 4, 4, 0]} barSize={20}>
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.067)' }} />
+          <Bar dataKey="energy" radius={[0, 4, 4, 0]} barSize={24}>
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={color} />
             ))}

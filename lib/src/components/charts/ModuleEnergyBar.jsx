@@ -35,7 +35,7 @@ export default function ModuleEnergyBar({ data }) {
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(107, 114, 128, 0.2)" />
             <XAxis dataKey="module" tick={{ fontSize: 12 }} interval={0} angle={-42} textAnchor="end" height={65} />
             <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip formatter={(value) => `${value.toFixed(2)} J`} />
+            <Tooltip formatter={(value) => `${(value / 1000).toFixed(1)} mJ`} />
             <Legend verticalAlign="top" height={32} />
             <Bar dataKey="mean" fill={energyPalette.secondary} radius={[8, 8, 0, 0]} />
             <Bar dataKey="median" fill={energyPalette.primary} radius={[8, 8, 0, 0]} />

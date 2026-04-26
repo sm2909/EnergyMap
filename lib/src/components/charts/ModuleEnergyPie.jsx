@@ -48,7 +48,7 @@ export default function ModuleEnergyPie({ data }) {
                 <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => `${value.toFixed(2)} J`} />
+            <Tooltip formatter={(value) => `${(value / 1000).toFixed(1)} mJ`} />
             <Legend layout="horizontal" verticalAlign="bottom" height={40} />
           </PieChart>
         </ResponsiveContainer>
