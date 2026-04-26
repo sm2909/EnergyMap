@@ -1,7 +1,7 @@
 import csv
 import statistics
 from collections import defaultdict
-
+import os
 
 ENERGY_FILE = "../data/test_energy_clean.csv"
 MAP_FILE = "../data/testcase_module_map.csv"
@@ -10,174 +10,166 @@ OUTPUT_FILE = "../data/module_energy_stats.csv"
 def extract_test_name(nodeid):
     """
     Convert pytest nodeid into plain testcase name.
-    Example:
-    tests/test_black.py::BlackTestCase::test_example -> test_example
     """
     return nodeid.split("::")[-1]
 
 def load_energy():
-    energy_data = {}
+    energy_data = []
 
     with open(ENERGY_FILE) as f:
         reader = csv.reader(f, delimiter=";")
-
         for row in reader:
             timestamp, repo, nodeid, duration, package, core = row[:6]
-
             testcase = extract_test_name(nodeid)
-
-            energy_data[(repo, testcase)] = {
-                "package": float(package),
-                "core": float(core)
-            }
+            energy_data.append((repo, testcase, float(package)))
 
     return energy_data
 
-
-def load_mapping():
-    """
-    Load testcase → module mapping.
-    Returns dict:
-        key = (repo, testcase)
-        value = list of modules
-    """
-
-    mapping = defaultdict(list)
-
+def process_data(energy_data):
+    mapping_by_test = defaultdict(list)
     with open(MAP_FILE, newline="") as f:
         reader = csv.DictReader(f)
-
         for row in reader:
-
-            repo = row["repo"]
-            testcase = row["testcase"]
-            module = row["module"]
-
-            if module == "UNMAPPED":
+            if row["module"] == "UNMAPPED":
                 continue
+            mapping_by_test[(row["repo"], row["testcase"])].append(row)
 
-            mapping[(repo, testcase)].append(module)
+    self_accum = defaultdict(list)  # (repo, M) -> list of E_self
+    dep_accum = defaultdict(lambda: defaultdict(list)) # (repo, M) -> D -> list of E_dep
+    module_category = {}
 
-    return mapping
-
-def aggregate_energy(energy_data, mapping):
-
-    module_energy = defaultdict(lambda: {
-        "package": [],
-        "core": []
-    })
-
-    matched = 0
-
-    for key in energy_data:
-
-        if key not in mapping:
+    for repo, testcase, e_test in energy_data:
+        mappings = mapping_by_test.get((repo, testcase))
+        if not mappings:
             continue
+            
+        test_internal = defaultdict(float)
+        test_dep = defaultdict(lambda: defaultdict(float))
+        
+        for row in mappings:
+            module = row["module"]
+            weight = float(row["weight"])
+            category = row["category"]
+            parent = row["parent_module"]
+            
+            energy = e_test * weight
+            
+            if parent == "":
+                test_internal[module] += energy
+                module_category[module] = category
+            else:
+                test_dep[parent][module] += energy
+                module_category[module] = category
 
-        matched += 1
+        all_M = set(test_internal.keys()) | set(test_dep.keys())
+        
+        for M in all_M:
+            e_module = test_internal.get(M, 0.0)
+            e_deps_total = sum(test_dep[M].values())
+            e_self = e_module - e_deps_total
+            e_self = max(0.0, e_self)
+            
+            self_accum[(repo, M)].append(e_self)
+            if M not in module_category:
+                module_category[M] = "internal"
+            
+        for M, deps in test_dep.items():
+            for D, e_dep in deps.items():
+                dep_accum[(repo, M)][D].append(e_dep)
 
-        energies = energy_data[key]
-        modules = mapping[key]
+    # Averaging
+    self_avg = {}
+    for (repo, M), energies in self_accum.items():
+        self_avg[(repo, M)] = statistics.mean(energies)
 
-        package_share = energies["package"] / len(modules)
-        core_share = energies["core"] / len(modules)
+    dep_avg = defaultdict(dict)
+    for (repo, M), deps in dep_accum.items():
+        for D, energies in deps.items():
+            dep_avg[(repo, M)][D] = statistics.mean(energies)
 
-        for module in modules:
-            module_energy[module]["package"].append(package_share)
-            module_energy[module]["core"].append(core_share)
-
-    print("Matched testcases:", matched)
-
-    return module_energy
-
-
-def compute_stats(module_energy):
-
+    # Build views
     rows = []
 
-    for module, energies in module_energy.items():
-
-        pkg = energies["package"]
-        core = energies["core"]
-
-        pkg_mean = statistics.mean(pkg)
-        pkg_median = statistics.median(pkg)
-        pkg_var = statistics.stdev(pkg) if len(pkg) > 1 else 0
-        pkg_best = min(pkg)
-        pkg_worst = max(pkg)
-
-        core_mean = statistics.mean(core)
-        core_median = statistics.median(core)
-        core_var = statistics.stdev(core) if len(core) > 1 else 0
-        core_best = min(core)
-        core_worst = max(core)
-
+    for repo, M in self_avg.keys():
+        m_self_avg = self_avg[(repo, M)]
+        m_dep_avgs = dep_avg.get((repo, M), {})
+        
+        # View 1: Nested (hierarchical)
+        # Level 1 (internal modules)
+        nested_internal_energy = m_self_avg + sum(m_dep_avgs.values())
         rows.append([
-            module,
-            pkg_mean,
-            pkg_median,
-            pkg_var,
-            pkg_best,
-            pkg_worst,
-            core_mean,
-            core_median,
-            core_var,
-            core_best,
-            core_worst,
-            len(pkg)
+            repo,
+            M,
+            module_category.get(M, "internal"),
+            "",
+            nested_internal_energy,
+            "nested"
+        ])
+        
+        # Level 2 (dependencies)
+        for D, d_avg in m_dep_avgs.items():
+            rows.append([
+                repo,
+                D,
+                module_category.get(D, "stdlib"),
+                M,
+                d_avg,
+                "nested"
+            ])
+            
+        # View 2: Flat (no hierarchy)
+        # Internal
+        rows.append([
+            repo,
+            M,
+            module_category.get(M, "internal"),
+            "",
+            m_self_avg,
+            "flat"
+        ])
+
+    # View 2: Flat (Dependencies)
+    flat_deps = defaultdict(float) # (repo, D) -> sum
+    for (repo, M), deps in dep_avg.items():
+        for D, d_avg in deps.items():
+            flat_deps[(repo, D)] += d_avg
+
+    for (repo, D), total_energy in flat_deps.items():
+        rows.append([
+            repo,
+            D,
+            module_category.get(D, "stdlib"),
+            "",
+            total_energy,
+            "flat"
         ])
 
     return rows
 
-
 def write_output(rows):
-
     with open(OUTPUT_FILE, "w", newline="") as f:
-
         writer = csv.writer(f)
-
         writer.writerow([
+            "repo",
             "module",
-
-            "package_mean",
-            "package_median",
-            "package_stdev",
-            "package_best",
-            "package_worst",
-
-            "core_mean",
-            "core_median",
-            "core_stdev",
-            "core_best",
-            "core_worst",
-
-            "num_testcases"
+            "category",
+            "parent_module",
+            "energy",
+            "view"
         ])
-
         writer.writerows(rows)
 
-
 def main():
-
     print("Loading energy data...")
     energy_data = load_energy()
 
-    print("Loading testcase-module mapping...")
-    mapping = load_mapping()
-
-    print("Aggregating energy per module...")
-    print("Energy entries:", len(energy_data))
-    print("Mapping entries:", len(mapping))
-    module_energy = aggregate_energy(energy_data, mapping)
-
-    print("Computing statistics...")
-    rows = compute_stats(module_energy)
+    print("Processing data and building views...")
+    rows = process_data(energy_data)
 
     print("Writing output...")
     write_output(rows)
 
     print(f"Done. Output written to {OUTPUT_FILE}")
-
 
 if __name__ == "__main__":
     main()
