@@ -5,7 +5,6 @@ import os
 
 app = FastAPI()
 
-
 # --- ADD THIS BLOCK ---
 # Allow your frontend to talk to your backend
 app.add_middleware(
@@ -26,28 +25,104 @@ PROJECT_ROOT = os.path.dirname(BASE_DIR)
 # Explicitly point to the db in the project root
 DB_PATH = os.path.join(PROJECT_ROOT, "energy_stats.db")
 
-@app.get("/api/energy")
-def get_energy(project: str = Query(...)):
-    # ... your existing database logic ...
+def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row 
+    return conn
+
+@app.get("/api/energy/nested")
+def get_energy_nested(repo: str = Query(...)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Get top-level internal modules
+    cursor.execute("""
+        SELECT module, category, energy 
+        FROM module_energy_hierarchy 
+        WHERE repo = ? AND view = 'nested' AND parent_module IS NULL
+    """, (repo,))
+    
+    top_level_rows = cursor.fetchall()
+    
+    modules = []
+    for row in top_level_rows:
+        module_name = row["module"]
+        module_data = {
+            "module": module_name,
+            "category": row["category"],
+            "energy": row["energy"],
+            "dependencies": []
+        }
+        
+        # Get dependencies for this module
+        cursor.execute("""
+            SELECT module, category, energy 
+            FROM module_energy_hierarchy 
+            WHERE repo = ? AND view = 'nested' AND parent_module = ?
+        """, (repo, module_name))
+        
+        dep_rows = cursor.fetchall()
+        for dep in dep_rows:
+            module_data["dependencies"].append({
+                "module": dep["module"],
+                "category": dep["category"],
+                "energy": dep["energy"]
+            })
+            
+        modules.append(module_data)
+        
+    conn.close()
+    
+    return {
+        "repo": repo,
+        "view": "nested",
+        "modules": modules
+    }
+
+@app.get("/api/energy/flat")
+def get_energy_flat(repo: str = Query(...)):
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT module, mean, median, variance, best_case, worst_case 
-        FROM module_energy_stats 
-        WHERE project = ?
-    """, (project,))
+        SELECT module, category, energy 
+        FROM module_energy_hierarchy 
+        WHERE repo = ? AND view = 'flat'
+    """, (repo,))
     
     rows = cursor.fetchall()
     conn.close()
     
-    if not rows:
-        return {"project": project, "modules": []}
-        
-    modules = [dict(row) for row in rows]
+    internal = []
+    stdlib = []
+    external = []
     
+    for row in rows:
+        item = {"module": row["module"], "energy": row["energy"]}
+        if row["category"] == "internal":
+            internal.append(item)
+        elif row["category"] == "stdlib":
+            stdlib.append(item)
+        elif row["category"] == "external":
+            external.append(item)
+            
     return {
-        "project": project,
-        "modules": modules
+        "repo": repo,
+        "view": "flat",
+        "internal": internal,
+        "stdlib": stdlib,
+        "external": external
     }
+
+@app.get("/api/repositories")
+def get_repositories():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT DISTINCT repo FROM module_energy_hierarchy")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    repos = [row["repo"] for row in rows]
+    
+    return {"repositories": repos}
