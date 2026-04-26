@@ -5,6 +5,8 @@ venv/
 .env
 .venv
 
+*.pyisession
+
 node_modules/
 build/
 
