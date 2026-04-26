@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { fetchRepositories } from '../../services/api';
 import './ProjectSelection.css';
 
 export default function ProjectSelection({ onProjectSelect }) {
   const [inputValue, setInputValue] = useState('');
   const [message, setMessage] = useState('');
+  const [validProjects, setValidProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const validProjects = ['flask', 'black', 'requests'];
+  useEffect(() => {
+    async function loadRepos() {
+      try {
+        const repos = await fetchRepositories();
+        setValidProjects(repos || []);
+      } catch (err) {
+        setMessage('Failed to load repositories.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadRepos();
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -24,7 +39,12 @@ export default function ProjectSelection({ onProjectSelect }) {
       <div className="project-selection-card">
         <h1>Select a Project</h1>
         <p>Enter the name of the project to view its energy statistics.</p>
-        <p className="hint">Available projects: flask, black, requests</p>
+        
+        {loading ? (
+          <p className="hint">Loading available projects...</p>
+        ) : (
+          <p className="hint">Available projects: {validProjects.join(', ')}</p>
+        )}
         
         <form onSubmit={handleSubmit} className="project-selection-form">
           <input
@@ -36,8 +56,9 @@ export default function ProjectSelection({ onProjectSelect }) {
               setMessage(''); // Clear message on new input
             }}
             className="project-input"
+            disabled={loading}
           />
-          <button type="submit" className="submit-btn">View Stats</button>
+          <button type="submit" className="submit-btn" disabled={loading}>View Stats</button>
         </form>
 
         {message && <div className="message">{message}</div>}

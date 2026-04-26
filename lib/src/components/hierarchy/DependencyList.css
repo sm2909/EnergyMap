@@ -1,0 +1,45 @@
+.dependency-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dependency-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.dependency-item:last-child {
+  border-bottom: none;
+}
+
+.dependency-item.highlight {
+  background-color: rgba(var(--primary-rgb), 0.1);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.dependency-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dependency-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dependency-name {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.dependency-item.self .dependency-name {
+  font-style: italic;
+  color: var(--text-primary);
+}
