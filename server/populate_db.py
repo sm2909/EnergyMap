@@ -2,61 +2,53 @@ import sqlite3
 import csv
 import os
 
-DATABASE = "energy_map.db"
-CSV_PATH = "data/module_energy_stats.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+DB_PATH = os.path.join(PROJECT_ROOT, "energy_stats.db")
+CSV_PATH = os.path.join(PROJECT_ROOT, "data", "aggregation_output.csv")
 
-def init_db():
-    conn = sqlite3.connect(DATABASE)
+def populate_db():
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Create the table using the exact schema provided
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS module_energy_stats (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project TEXT NOT NULL,
-            module TEXT NOT NULL,
-            mean REAL,
-            median REAL,
-            variance REAL,
-            best_case REAL,
-            worst_case REAL,
-            UNIQUE(project, module)
-        );
-    """)
+    # Try multiple common paths for the new aggregation output CSV
+    possible_paths = [
+        CSV_PATH,
+        os.path.join(PROJECT_ROOT, "data", "module_energy_hierarchy.csv"),
+        "data/aggregation_output.csv",
+        "data/module_energy_hierarchy.csv",
+    ]
     
-    # Read the CSV and populate the database
-    with open(CSV_PATH, newline="") as f:
+    csv_file_to_use = None
+    for p in possible_paths:
+        if os.path.exists(p):
+            csv_file_to_use = p
+            break
+            
+    if not csv_file_to_use:
+        print("Error: Could not find the new aggregation output CSV file.")
+        print(f"Looked in: {possible_paths}")
+        return
+
+    with open(csv_file_to_use, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            module_path = row["module"]
-            
-            # Extract the project name from the path (e.g., ../repos/black/... -> black)
-            parts = module_path.split('/')
-            if len(parts) > 2 and parts[1] == 'repos':
-                project = parts[2]
-            else:
-                continue
-                
-            module_name = os.path.basename(module_path)
-            
-            # Map the CSV package stats to the database columns
-            # Variance is the square of the standard deviation
-            mean = float(row["package_mean"])
-            median = float(row["package_median"])
-            stdev = float(row["package_stdev"])
-            variance = stdev ** 2  
-            best_case = float(row["package_best"])
-            worst_case = float(row["package_worst"])
+            repo = row["repo"]
+            module = row["module"]
+            category = row["category"]
+            parent_module = row["parent_module"] if row.get("parent_module") else None
+            energy = float(row["energy"])
+            view = row["view"]
             
             cursor.execute("""
-                INSERT OR IGNORE INTO module_energy_stats 
-                (project, module, mean, median, variance, best_case, worst_case)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (project, module_name, mean/1e6, median/1e6, variance/1e6, best_case/1e6, worst_case/1e6))
+                INSERT OR REPLACE INTO module_energy_hierarchy 
+                (repo, module, category, parent_module, energy, view)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (repo, module, category, parent_module, energy, view))
 
     conn.commit()
     conn.close()
-    print(f"Database {DATABASE} successfully populated from {CSV_PATH}.")
+    print(f"Database {DB_PATH} successfully populated from {csv_file_to_use}.")
 
 if __name__ == "__main__":
-    init_db()
+    populate_db()
